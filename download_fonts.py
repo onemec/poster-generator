@@ -1,31 +1,21 @@
-import os
+from fontlinks import fonts, FONTDIR
+import urllib3
+import pathlib
+
 
 def download_fonts(output_directory):
-    # Define the input text file and output directory
-    input_file = 'fontlinks.txt'
-
-    # Create the output directory if it doesn't exist
-    os.makedirs(output_directory, exist_ok=True)
-
-    # Read the lines from the input file
-    with open(input_file, 'r') as file:
-        lines = file.readlines()
-
-    # Iterate through the lines and download the files
-    for line in lines:
-        name, link = line.strip().split('=')
-        name = name.strip() + ".ttf"
-        link = link.strip()
-        
-        # Check if the file already exists in the output directory
-        if os.path.exists(os.path.join(output_directory, name)):
-            print(f"File '{name}' already exists. Skipping download.")
+    output_path = pathlib.Path(output_directory)
+    if not output_path.exists():
+        output_path.mkdir(parents=True)
+    for font_name, font_url in fonts.items():
+        output_file = output_path / f"{font_name}.ttf"
+        if output_file.exists():
+            print(f"File '{font_name}.ttf' already exists. Skipping download.")
         else:
-            # Use wget to download the file with the specified name
-            os.system(f'wget -O "{output_directory}/{name}" "{link}"')
-
+            resp = urllib3.request("GET", font_url)
+            output_file.write_bytes(resp.data)
     print("Downloads complete!")
 
 
 if __name__ == "__main__":
-    download_fonts()
+    download_fonts(output_directory=FONTDIR)

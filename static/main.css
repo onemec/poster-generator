@@ -1,5 +1,5 @@
 body {
-    font-family: Sans-Serif;
+    font-family: sans-serif;
     max-width: 42em;
     margin: auto;
     text-align: center;
@@ -85,7 +85,6 @@ form {
   }
   
   input:checked + .slider:before {
-    -webkit-transform: translateX(70px);
     -ms-transform: translateX(70px);
     transform: translateX(70px);
   }

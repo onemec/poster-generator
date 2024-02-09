@@ -22,20 +22,19 @@ import langid
 
 load_dotenv()
 
-def get_access_token():
-    SPOTIFY_SECRET = os.getenv('SPOTIFY_SECRET')
-    SPOTIFY_ID = os.getenv('SPOTIFY_ID')
-    AUTH_URL = r'https://accounts.spotify.com/api/token'
 
-    auth_response = requests.post(AUTH_URL, {
+def get_access_token():
+    spotify_secret = os.getenv('SPOTIFY_SECRET')
+    spotify_id = os.getenv('SPOTIFY_ID')
+    auth_url = r'https://accounts.spotify.com/api/token'
+
+    auth_response = requests.post(auth_url, {
         'grant_type': 'client_credentials',
-        'client_id': SPOTIFY_ID,
-        'client_secret': SPOTIFY_SECRET,
+        'client_id': spotify_id,
+        'client_secret': spotify_secret,
     }).json()
-    
-    access_token = auth_response['access_token']
-    
-    return access_token
+
+    return auth_response['access_token']
 
 
 def spotify_data_pull(album):
@@ -50,35 +49,27 @@ def spotify_data_pull(album):
     if '?' in album:
         album = album[:album.find('?')]
 
-    id = album[album.find(album_url_base)+len(album_url_base):]
+    album_id = album[album.find(album_url_base) + len(album_url_base):]
 
     access_token = get_access_token()
-    
-    headers = {
-        'Authorization': 'Bearer ' + access_token
-    }
 
-    r = requests.get(album_get.format(id=id), headers=headers)
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    r = requests.get(album_get.format(id=album_id), headers=headers)
     r = r.json()
 
     # ensure that response from Spotify contains necessary data
     if 'tracks' not in r:
         return None
 
-    playtime = 0
-    for i in r['tracks']['items']:
-        playtime += i['duration_ms']
-
-    playtime = str(datetime.timedelta(seconds=playtime//1000))
+    playtime = sum(i['duration_ms'] for i in r['tracks']['items'])
+    playtime = str(datetime.timedelta(seconds=playtime // 1000))
     if playtime[0] == '0':
         playtime = playtime[2:]
 
-    tracks = []
-    for i in r['tracks']['items']:
-        tracks.append(i['name'])
-
+    tracks = [i['name'] for i in r['tracks']['items']]
     album_art = r['images'][0]['url']
-    
+
     date_str = r['release_date'].replace('-', '')
 
     # handle release date precision
@@ -86,28 +77,27 @@ def spotify_data_pull(album):
         format_str = r'%Y%m%d'
     elif r['release_date_precision'] == 'month':
         format_str = r'%Y%m'
-    elif r['release_date_precision'] == 'year':
+    else:
         format_str = r'%Y'
 
     release_date = datetime.datetime.strptime(date_str, format_str).strftime(r'%B %d, %Y')
 
-
-    data = {}
-
-    data.update({'album_id': id})
-    data.update({'album_name': [r['name'], langid.classify(r['name'])]})
-    data.update({'album_artist': [r['artists'][0]['name'], langid.classify(r['artists'][0]['name'])]})
-    data.update({'record' : [r['label'], langid.classify(r['label'])]})
-    data.update({'release_date' : release_date})
-    data.update({'playtime' : playtime})
-    data.update({'tracks' : tracks})
-    data.update({'album_art': album_art})
-
-    return data
+    return {
+        'album_id': album_id,
+        'album_name': [r['name'], langid.classify(r['name'])],
+        'album_artist': [
+            r['artists'][0]['name'],
+            langid.classify(r['artists'][0]['name']),
+        ],
+        'record': [r['label'], langid.classify(r['label'])],
+        'release_date': release_date,
+        'playtime': playtime,
+        'tracks': tracks,
+        'album_art': album_art,
+    }
 
 
 def rounded_rectangle(src, top_left, bottom_right, radius=1, color=255, thickness=1, line_type=cv2.LINE_AA):
-
     #  corners:
     #  p1 - p2
     #  |     |
@@ -120,14 +110,11 @@ def rounded_rectangle(src, top_left, bottom_right, radius=1, color=255, thicknes
 
     height = abs(bottom_right[0] - top_left[1])
 
-    if radius > 1:
-        radius = 1
-
-    corner_radius = int(radius * (height/2))
+    radius = min(radius, 1)
+    corner_radius = int(radius * (height / 2))
 
     if thickness < 0:
-
-        #big rect
+        # big rect
         top_left_main_rect = (int(p1[0] + corner_radius), int(p1[1]))
         bottom_right_main_rect = (int(p3[0] - corner_radius), int(p3[1]))
 
@@ -138,9 +125,9 @@ def rounded_rectangle(src, top_left, bottom_right, radius=1, color=255, thicknes
         bottom_right_rect_right = (p3[0], p3[1] - corner_radius)
 
         all_rects = [
-        [top_left_main_rect, bottom_right_main_rect],
-        [top_left_rect_left, bottom_right_rect_left],
-        [top_left_rect_right, bottom_right_rect_right]]
+            [top_left_main_rect, bottom_right_main_rect],
+            [top_left_rect_left, bottom_right_rect_left],
+            [top_left_rect_right, bottom_right_rect_right]]
 
         [cv2.rectangle(src, rect[0], rect[1], color, thickness) for rect in all_rects]
 
@@ -151,16 +138,20 @@ def rounded_rectangle(src, top_left, bottom_right, radius=1, color=255, thicknes
     cv2.line(src, (p4[0], p4[1] - corner_radius), (p1[0], p1[1] + corner_radius), color, abs(thickness), line_type)
 
     # draw arcs
-    cv2.ellipse(src, (p1[0] + corner_radius, p1[1] + corner_radius), (corner_radius, corner_radius), 180.0, 0, 90, color ,thickness, line_type)
-    cv2.ellipse(src, (p2[0] - corner_radius, p2[1] + corner_radius), (corner_radius, corner_radius), 270.0, 0, 90, color , thickness, line_type)
-    cv2.ellipse(src, (p3[0] - corner_radius, p3[1] - corner_radius), (corner_radius, corner_radius), 0.0, 0, 90,   color , thickness, line_type)
-    cv2.ellipse(src, (p4[0] + corner_radius, p4[1] - corner_radius), (corner_radius, corner_radius), 90.0, 0, 90,  color , thickness, line_type)
+    cv2.ellipse(src, (p1[0] + corner_radius, p1[1] + corner_radius), (corner_radius, corner_radius), 180.0, 0, 90,
+                color, thickness, line_type)
+    cv2.ellipse(src, (p2[0] - corner_radius, p2[1] + corner_radius), (corner_radius, corner_radius), 270.0, 0, 90,
+                color, thickness, line_type)
+    cv2.ellipse(src, (p3[0] - corner_radius, p3[1] - corner_radius), (corner_radius, corner_radius), 0.0, 0, 90, color,
+                thickness, line_type)
+    cv2.ellipse(src, (p4[0] + corner_radius, p4[1] - corner_radius), (corner_radius, corner_radius), 90.0, 0, 90, color,
+                thickness, line_type)
 
     return src
 
-def dominant_colors(image):
 
-    image = np.resize(image, (3*(image.shape[0])//4, 3*(image.shape[1])//4, image.shape[2]))
+def dominant_colors(image):
+    image = np.resize(image, (3 * (image.shape[0]) // 4, 3 * (image.shape[1]) // 4, image.shape[2]))
     ar = np.asarray(image)
     shape = ar.shape
     ar = ar.reshape(np.product(shape[:2]), shape[2]).astype(float)
@@ -173,18 +164,18 @@ def dominant_colors(image):
     ).fit(ar)
     codes = kmeans.cluster_centers_
 
-    vecs, _dist = scipy.cluster.vq.vq(ar, codes)         # assign codes
-    counts, _bins = np.histogram(vecs, len(codes))    # count occurrences
+    vecs, _dist = scipy.cluster.vq.vq(ar, codes)  # assign codes
+    counts, _bins = np.histogram(vecs, len(codes))  # count occurrences
 
-    colors = []
-    for index in np.argsort(counts)[::-1]:
-        colors.append([int(code) for code in codes[index]])
-    return colors                    # returns colors in order of dominance
+    return [
+        [int(code) for code in codes[index]]
+        for index in np.argsort(counts)[::-1]
+    ]
 
 
 def image_from_url(url: str):
     r = requests.get(url, stream=True)
-    if r.ok is True:
+    if r.ok:
         # Load the image using BytesIO and open it with PIL
         image_data = BytesIO(r.content)
         return Image.open(image_data)

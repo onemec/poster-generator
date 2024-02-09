@@ -8,12 +8,23 @@ Enter a (valid) Spotify album URL, receive a poster!
 
 ## Examples!
 
-<p float="center">
-  <img src="images/Honestly,_Nevermind_dark_poster.png" width="49%" />
-  <img src="images/結束バンド_light_poster.png" width="49%" /> 
+<p style="text-align: center;">
+  <img src="images/Honestly,_Nevermind_dark_poster.png" style="width: 49%;" alt="Poster 1"/>
+  <img src="images/結束バンド_light_poster.png" style="width: 49%;" alt="Poster 2"/> 
 </p>
 
 ---
+
+## Usage
+
+1. Build the `Dockerfile`:
+    ```bash
+    docker build . --name poster-generator
+    ```
+2. Run Gunicorn locally:
+    ```bash
+    docker run -d -p 3000:3000 docker.io/library/poster-generator
+    ```
 
 ### Issues/Ideas
 - [ ] Tracks vertical length scaling
@@ -31,5 +42,5 @@ To run this for yourself locally, you'll need a .env file with the following val
 - FLASK_SECRET = `your flask secret code`
 
 ---
-Big thanks to @sudmike for contributing to the repository and coming up with ideas!
-> The website probably wont be up all the time, just email me if you need one.
+Big thanks to [@sudmike](https://github.com/sudmike) for contributing to the repository and coming up with ideas!
+> The website probably won't be up all the time, just email me if you need one.

@@ -19,7 +19,7 @@ import requests
 load_dotenv()
 
 app = Flask(__name__, instance_relative_config=True)
-app.config["SECRET_KEY"]=os.getenv('FLASK_SECRET')
+app.config["SECRET_KEY"] = os.getenv('FLASK_SECRET')
 
 
 @app.route('/')
@@ -27,69 +27,65 @@ def index():
     return render_template('mainpage.html')
 
 
-@app.route('/result', methods = ['POST', 'GET'])
+@app.route('/result', methods=['POST', 'GET'])
 def result():
-    if request.method == 'POST':
-        album_link = request.form["album_input"]
-        width = 3300 if 'width' not in request.form or not request.form["width"].isnumeric() else int(request.form["width"])
-        height = 5100 if 'height' not in request.form or not request.form["height"].isnumeric() else int(request.form["height"])
-
-        # check that input is not empty
-        if album_link == "" or album_link is None:
-            return render_template('mainpage.html', warning_notification='Input field cannot be empty')
-
-        # check values for height and width
-        if width < 300 or height < 450:  # width and height have minimum requirements
-            return render_template('mainpage.html', warning_notification='Width must be at least 300px and height must be at least 450px')
-        if height < width * 1.25 or height > width * 2:  # height must be between 30% and 100% larger than width
-            return render_template('mainpage.html', warning_notification='Height must be between 25% and 100% larger than width')
-        
-        # poster options
-        options = {}
-
-        # get color theme of poster
-        theme = request.form["theme"]
-        options['theme'] = theme
-
-        # check if featured artists are to be removed from track
-        remove_featured = request.form.get("remove_featured_artists")
-        if remove_featured == 'true':
-            options['remove_featured_artists'] = True
-        else:
-            options['remove_featured_artists'] = False
-
-        if re.match(r'https://spotify.link/([a-zA-Z0-9]+)', album_link):
-            album_link = requests.get(album_link).url
-
-        patterns = [
-            (r'^https://open\.spotify\.com/album/([a-zA-Z0-9]+)'),
-            (r'^spotify:album:([a-zA-Z0-9]+)'),
-            ]
-    
-        if not any(re.match(pattern, album_link) for pattern in patterns):
-            return render_template('mainpage.html', warning_notification='Invalid album link')
-
-        # generate poster
-        poster, album_name = generator(album_link, (width, height), options)
-
-        # check that album data was fetched
-        if poster is None or album_name is None:
-            return render_template('mainpage.html', warning_notification=f'Failed to get album data based on input "{album_link}"')
-
-        poster_bytes = io.BytesIO()
-        poster.save(poster_bytes, "png")
-        poster_bytes.seek(0)
-
-        return send_file(
-            poster_bytes,
-            mimetype='image/png',
-            download_name=f"{album_name}_{theme}_poster.jpg",
-            as_attachment=True
-        )
-
-    else:
+    if request.method != 'POST':
         # redirect to home screen if result page is called in browser
         return redirect('/')
+    album_link = request.form["album_input"]
+    width = 3300 if 'width' not in request.form or not request.form["width"].isnumeric() else int(request.form["width"])
+    height = 5100 if 'height' not in request.form or not request.form["height"].isnumeric() else int(
+        request.form["height"])
+
+    # check that input is not empty
+    if album_link == "" or album_link is None:
+        return render_template('mainpage.html', warning_notification='Input field cannot be empty')
+
+    # check values for height and width
+    if width < 300 or height < 450:  # width and height have minimum requirements
+        return render_template('mainpage.html',
+                               warning_notification='Width must be at least 300px and height must be at least 450px')
+    if height < width * 1.25 or height > width * 2:  # height must be between 30% and 100% larger than width
+        return render_template('mainpage.html',
+                               warning_notification='Height must be between 25% and 100% larger than width')
+
+    # get color theme of poster
+    theme = request.form["theme"]
+    # check if featured artists are to be removed from track
+    remove_featured = request.form.get("remove_featured_artists")
+    options = {
+        'theme': theme,
+        'remove_featured_artists': remove_featured == 'true',
+    }
+    if re.match(r'https://spotify.link/([a-zA-Z0-9]+)', album_link):
+        album_link = requests.get(album_link).url
+
+    patterns = [
+        r'^https://open\.spotify\.com/album/([a-zA-Z0-9]+)',
+        r'^spotify:album:([a-zA-Z0-9]+)',
+    ]
+
+    if not any(re.match(pattern, album_link) for pattern in patterns):
+        return render_template('mainpage.html', warning_notification='Invalid album link')
+
+    # generate poster
+    poster, album_name = generator(album_link, (width, height), options)
+
+    # check that album data was fetched
+    if poster is None or album_name is None:
+        return render_template('mainpage.html',
+                               warning_notification=f'Failed to get album data based on input "{album_link}"')
+
+    poster_bytes = io.BytesIO()
+    poster.save(poster_bytes, "png")
+    poster_bytes.seek(0)
+
+    return send_file(
+        poster_bytes,
+        mimetype='image/png',
+        download_name=f"{album_name}_{theme}_poster.jpg",
+        as_attachment=True
+    )
 
 
 if __name__ == '__main__':
